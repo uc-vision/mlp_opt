@@ -1,0 +1,16 @@
+{"time":"2025-01-20T10:57:08.077297861+13:00","level":"INFO","msg":"using version","core version":"0.19.1"}
+{"time":"2025-01-20T10:57:08.077310145+13:00","level":"INFO","msg":"created symlink","path":"/csse/users/pwl25/ucvision/mlp_opt/learned_optimizer/log_wandb_&_gaussian_mixer/wandb/run-20250120_105708-bfl8re8l/logs/debug-core.log"}
+{"time":"2025-01-20T10:57:08.188143324+13:00","level":"INFO","msg":"created new stream","id":"bfl8re8l"}
+{"time":"2025-01-20T10:57:08.18823811+13:00","level":"INFO","msg":"stream: started","id":"bfl8re8l"}
+{"time":"2025-01-20T10:57:08.188340878+13:00","level":"INFO","msg":"writer: Do: started","stream_id":"bfl8re8l"}
+{"time":"2025-01-20T10:57:08.188403082+13:00","level":"INFO","msg":"handler: started","stream_id":"bfl8re8l"}
+{"time":"2025-01-20T10:57:08.188923669+13:00","level":"INFO","msg":"sender: started","stream_id":"bfl8re8l"}
+{"time":"2025-01-20T10:57:08.806427312+13:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-01-20T10:57:21.575171639+13:00","level":"INFO","msg":"stream: closing","id":"bfl8re8l"}
+{"time":"2025-01-20T10:57:21.582701171+13:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-01-20T10:57:21.583134497+13:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-01-20T10:57:23.254157947+13:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-01-20T10:57:23.731163118+13:00","level":"INFO","msg":"handler: closed","stream_id":"bfl8re8l"}
+{"time":"2025-01-20T10:57:23.731265107+13:00","level":"INFO","msg":"sender: closed","stream_id":"bfl8re8l"}
+{"time":"2025-01-20T10:57:23.731249213+13:00","level":"INFO","msg":"writer: Close: closed","stream_id":"bfl8re8l"}
+{"time":"2025-01-20T10:57:23.735955473+13:00","level":"INFO","msg":"stream: closed","id":"bfl8re8l"}
