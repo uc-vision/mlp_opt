@@ -1,6 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-learned_optimizer/wandb/
+learned_optimizer/wandb/*
 *.py[cod]
 *$py.class
 

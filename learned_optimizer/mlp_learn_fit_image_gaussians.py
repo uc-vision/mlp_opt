@@ -109,7 +109,9 @@ def psnr(a, b):
 
 
 def train_epoch(opt: FractionalAdam,
-                params: ParameterClass,
+                mlp_opt: torch.optim.Optimizer,
+               mlp : torch.nn.Module,
+                params:ParameterClass,
                 ref_image,
                 config: RasterConfig,
                 epoch_size=100,
@@ -176,13 +178,12 @@ def train_epoch(opt: FractionalAdam,
 
 
             
-        params.mlp_opt.zero_grad()
+        mlp_opt.zero_grad()
         model_step = gaussians_clone - gaussians
         
         # Flatten gradients for MLP input
         grad = flatten_tensorclass(gaussians.grad)
         gaussians[:] = gaussians_clone
-        mlp = params.mlp[0] if isinstance(params.mlp, tuple) else params.mlp
 
         with torch.enable_grad():
             # Predict step using MLP
@@ -198,7 +199,7 @@ def train_epoch(opt: FractionalAdam,
             mlp_loss = torch.nn.functional.l1_loss(flatten_tensorclass(model_step), flatten_tensorclass(predicted_step))
             mlp_loss.backward()
 
-        params.mlp_opt.step()
+        mlp_opt.step()
         gaussians -= predicted_step
 
 
@@ -387,8 +388,6 @@ def main():
                             vis_beta=0.9,
                             betas=(0.9, 0.9),
                             eps=1e-16,
-                            mlp=mlp,
-                            mlp_opt=mlp_opt,
                             bias_correction=False)
 
     keys = set(params.keys())
@@ -437,6 +436,8 @@ def main():
 
         image, point_heuristics, epoch_time = train(
             params.optimizer,
+            mlp_opt,
+            mlp,
             params,
             ref_image,
             epoch_size=epoch_size,
