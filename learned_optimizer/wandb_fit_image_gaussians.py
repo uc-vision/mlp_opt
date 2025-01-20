@@ -12,7 +12,7 @@ import torch
 import numpy as np
 from gaussian_mixer import GaussianMixer
 from tqdm import tqdm
-from fit_image_gaussians import parse_args, partial, log_lerp, psnr, display_image, flatten_tensorclass, split_tensorclass, mean_dicts, lerp
+from utils import parse_args, partial, log_lerp, psnr, display_image, flatten_tensorclass, split_tensorclass, mean_dicts, lerp
 from taichi_splatting.data_types import Gaussians2D, RasterConfig
 from taichi_splatting.misc.renderer2d import point_basis, project_gaussians2d, uniform_split_gaussians2d
 import wandb
@@ -388,7 +388,7 @@ def main():
                             betas=(0.9, 0.9),
                             eps=1e-16,
                             mlp=mlp,
-                            mlp_opt = mlp_opt,
+                            mlp_opt=mlp_opt,
                             bias_correction=False)
 
     keys = set(params.keys())

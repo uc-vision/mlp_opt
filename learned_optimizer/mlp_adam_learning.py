@@ -23,7 +23,7 @@ import numpy as np
 
 import torch
 from tqdm import tqdm
-from fit_image_gaussians import parse_args, partial, log_lerp, psnr, display_image, flatten_tensorclass, split_tensorclass, mean_dicts, lerp
+from utils import parse_args, partial, log_lerp, psnr, display_image, flatten_tensorclass, split_tensorclass, mean_dicts, lerp
 from fused_ssim import fused_ssim
 from gaussian_mixer import GaussianMixer
 from taichi_splatting.torch_lib.util import check_finite

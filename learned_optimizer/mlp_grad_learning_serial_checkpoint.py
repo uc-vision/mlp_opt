@@ -14,7 +14,7 @@ from tqdm import tqdm
 from taichi_splatting.data_types import Gaussians2D, RasterConfig
 from taichi_splatting.examples.mlp import mlp
 from taichi_splatting.misc.renderer2d import project_gaussians2d
-from fit_image_gaussians import parse_args,Trainer,partial,log_lerp,psnr,display_image
+from utils import parse_args,Trainer,partial,log_lerp,psnr,display_image
 
 from taichi_splatting.rasterizer.function import rasterize
 
