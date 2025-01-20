@@ -180,10 +180,10 @@ def train_epoch(opt: FractionalAdam,
             
         mlp_opt.zero_grad()
         model_step = gaussians_clone - gaussians
-        
+        gaussians[:] = gaussians_clone
         # Flatten gradients for MLP input
         grad = flatten_tensorclass(gaussians.grad)
-        gaussians[:] = gaussians_clone
+        
 
         with torch.enable_grad():
             # Predict step using MLP
