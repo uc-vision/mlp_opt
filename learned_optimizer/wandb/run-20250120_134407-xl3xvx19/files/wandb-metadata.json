@@ -1,0 +1,51 @@
+{
+  "os":  "Linux-5.15.0-91-generic-x86_64-with-glibc2.35",
+  "python":  "CPython 3.11.10",
+  "startedAt":  "2025-01-20T00:44:07.507655Z",
+  "args":  [
+    "--show",
+    "/csse/users/pwl25/pear/images/DSC_1355_12kv2r4k_5.jpg",
+    "--n",
+    "5000",
+    "--iters",
+    "800",
+    "--wandb"
+  ],
+  "program":  "/csse/users/pwl25/ucvision/mlp_opt/learned_optimizer/wandb_fit_image_gaussians.py",
+  "codePath":  "learned_optimizer/wandb_fit_image_gaussians.py",
+  "git":  {
+    "remote":  "git@github.com:uc-vision/mlp_opt.git",
+    "commit":  "0320a43860480347a9743b67067085c239cd8ece"
+  },
+  "email":  "swanpwl01@gmail.com",
+  "root":  "/csse/users/pwl25/ucvision/mlp_opt/learned_optimizer",
+  "host":  "cs21030it",
+  "executable":  "/local/swan/envs/torch2/bin/python",
+  "codePathLocal":  "wandb_fit_image_gaussians.py",
+  "cpu_count":  8,
+  "cpu_count_logical":  8,
+  "gpu":  "NVIDIA GeForce RTX 2070 SUPER",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "1005441241088",
+      "used":  "861590044672"
+    }
+  },
+  "memory":  {
+    "total":  "33416941568"
+  },
+  "cpu":  {
+    "count":  8,
+    "countLogical":  8
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "NVIDIA GeForce RTX 2070 SUPER",
+      "memoryTotal":  "8589934592",
+      "cudaCores":  2560,
+      "architecture":  "Turing"
+    }
+  ],
+  "cudaVersion":  "12.2"
+}
