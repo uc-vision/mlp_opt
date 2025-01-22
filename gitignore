@@ -1,6 +1,5 @@
 # Byte-compiled / optimized / DLL files
-__pycache__/
-learned_optimizer/wandb
+
 *.py[cod]
 *$py.class
 
@@ -133,6 +132,9 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+learned_optimizer/wandb/*
+__pycache__/
+learned_optimizer/wandb
 .dmypy.json
 dmypy.json
 
