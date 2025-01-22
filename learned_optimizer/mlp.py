@@ -4,33 +4,34 @@ import torch.nn as nn
 
 from taichi_splatting.misc.renderer2d import point_covariance
 from renderer2d import Gaussians2D
+import taichi as ti
 
-def kl_divergence(means1:torch.Tensor, means2:torch.Tensor, cov1:torch.Tensor, cov2:torch.Tensor) -> torch.Tensor:
-  """Compute KL divergence between two 2D Gaussian distributions.
-  
-  Args:
-    means1: (N,D) tensor of means for first distribution
-    means2: (N,D) tensor of means for second distribution  
-    cov1: (N,D,D) tensor of covariance matrices for first distribution
-    cov2: (N,D,D) tensor of covariance matrices for second distribution
+from typing import Callable, List, Tuple, Dict
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
-  Returns:
-    (N,) tensor of KL divergence values
-  """
-  # Compute inverse of cov2
-  cov2_inv = torch.linalg.inv(cov2)
-  
-  # Compute trace term
-  trace_term = torch.einsum('...ij,...jk->...ik', cov2_inv, cov1)
-  trace_term = torch.diagonal(trace_term, dim1=-2, dim2=-1).sum(-1)
-  
-  # Compute quadratic term for means
-  mean_diff = means2 - means1
-  quad_term = torch.einsum('...i,...ij,...j->...', mean_diff, cov2_inv, mean_diff)
-  
-  # Combine terms
-  return 0.5 * (trace_term + quad_term - 2 + torch.logdet(cov2) - torch.logdet(cov1))
-  
+from taichi_splatting.data_types import RasterConfig
+from taichi_splatting.misc.renderer2d import project_gaussians2d
+from taichi_splatting.taichi_queue import TaichiQueue
+from taichi_splatting.tests.random_data import random_2d_gaussians
+from renderer2d import Gaussians2D
+import wandb
+from taichi_splatting.rasterizer.function import rasterize
+
+import os
+import matplotlib.pyplot as plt
+from functools import partial
+import math
+import cv2
+import argparse
+import numpy as np
+
+import torch
+from tqdm import tqdm
+from fused_ssim import fused_ssim
+from taichi_splatting.torch_lib.util import check_finite
+
 
 def linear(in_features, out_features,  init_std=None):
   m = nn.Linear(in_features, out_features, bias=True)
@@ -68,3 +69,30 @@ def mlp(inputs, outputs, hidden_channels: List[int], activation=nn.ReLU, norm=nn
     mlp_body(inputs, hidden_channels, activation, norm),
     output_layer
   )   
+
+
+class MLP_Model(nn.Module):
+
+    def __init__(self,
+                 inputs: int,
+                 outputs: int,
+                 n_render: int = 16,
+                 n_base: int = 64,
+                 ):
+        super().__init__() 
+        
+        self.final_mlp = mlp(inputs,
+                            outputs=outputs,
+                            hidden_channels=[n_base] * 2,
+                            activation=nn.ReLU,
+                            norm=nn.LayerNorm,
+                            output_scale=1e-12)
+
+
+
+    def forward(self, x: torch.Tensor, gaussians: Gaussians2D,
+                image_size: Tuple[int, int], raster_config: RasterConfig,
+                ref_image: torch.Tensor) -> torch.Tensor:
+        
+        x = self.final_mlp(x)
+        return x

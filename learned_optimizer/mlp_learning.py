@@ -10,7 +10,7 @@ import taichi as ti
 import json
 import torch
 import numpy as np
-from gaussian_mixer import GaussianMixer
+
 from tqdm import tqdm
 from utils import parse_args, partial, log_lerp, psnr, display_image, flatten_tensorclass, split_tensorclass, mean_dicts, lerp
 from taichi_splatting.data_types import Gaussians2D, RasterConfig
@@ -29,6 +29,7 @@ from torch.profiler import profile, record_function, ProfilerActivity
 from taichi_splatting.examples.fit_image_gaussians import parse_args, make_epochs , train_epoch
 import time
 import torch.nn.functional as F
+from mlp import MLP_Model
 
 
 class Trainer:
@@ -40,7 +41,65 @@ class Trainer:
         self.mlp = mlp
         self.mlp_opt = mlp_opt
 
+    def train_epoch(self,       
+        epoch_size=100, 
+        grad_alpha=0.9, 
+        opacity_reg=0.0,
+        scale_reg=0.0):
+    
+        h, w = self.ref_image.shape[:2]
 
+        point_heuristic = torch.zeros((self.params.batch_size[0], 2), device=self.params.position.device)
+        visibility = torch.zeros((self.params.batch_size[0]), device=self.params.position.device)
+
+        for i in range(epoch_size):
+            self.optimizer.zero_grad()
+
+            with torch.enable_grad():
+                gaussians = Gaussians2D.from_tensordict(self.params.tensors)
+                gaussians2d = project_gaussians2d(gaussians)  
+
+                raster = rasterize(gaussians2d=gaussians2d, 
+                    depth=gaussians.z_depth.clamp(0, 1),
+                    features=gaussians.feature, 
+                    image_size=(w, h), 
+                    config=self.config)
+                
+                image = raster.image.sigmoid()
+
+                
+                scale = torch.exp(gaussians.log_scaling) / min(w, h)
+                loss = (torch.nn.functional.mse_loss(image, self.ref_image) 
+                        + opacity_reg * gaussians.opacity.mean()
+                        + scale_reg * scale.pow(2).mean())
+
+                loss.backward()
+
+
+            check_finite(gaussians, 'gaussians')
+            visibility = raster.visibility
+            visible = (visibility > 1e-8).nonzero().squeeze(1)
+
+
+
+            if isinstance(self.optimizer, VisibilityOptimizer):
+                self.optimizer.step(indexes = visible, 
+                        visibility=visibility[visible], 
+                        basis=point_basis(gaussians[visible]))
+            else:
+                self.optimizer.step(indexes = visible, 
+                        basis=point_basis(gaussians[visible]))
+
+            self.params.replace(
+            rotation = torch.nn.functional.normalize(self.params.rotation.detach()),
+            log_scaling = torch.clamp(self.params.log_scaling.detach(), min=-5, max=5)
+            )
+
+            point_heuristic +=  raster.point_heuristic
+            visibility += raster.visibility
+
+
+        return image, (point_heuristic[:, 0], point_heuristic[:, 1]) 
 
     def train(self, epoch_size=100, grad_alpha=0.9, opacity_reg=0.0, scale_reg=0.0):
 
@@ -48,27 +107,20 @@ class Trainer:
 
             params_before = self.params.tensors.clone().detach()
 
-            # Run the original train_epoch function
-            image, metrics = train_epoch(
-                opt=self.optimizer,
-                params=self.params,
-                ref_image=self.ref_image,
-                config=self.config,
+            image, metrics = self.train_epoch(
                 epoch_size=epoch_size,
                 grad_alpha=grad_alpha,
                 opacity_reg=opacity_reg,
                 scale_reg=scale_reg
             )
         
-            mlp_loss, mlp_params = self.train_mlp(params_before,epoch_size,opacity_reg,scale_reg)
-
-        # Apply MLP updates and render the results
-            
+        mlp_loss, mlp_params = self.train_mlp(params_before,epoch_size,opacity_reg,scale_reg)
         mlp_image = self.render_gaussians(mlp_params)
-        display_image('mlp', mlp_image.image)
+        
 
 
-        return image, metrics
+        return image, metrics, mlp_image.image.sigmoid()
+
 
     def render_step(self,gaussians,epoch_size,
                 opacity_reg,
@@ -83,7 +135,7 @@ class Trainer:
                 image_size=(w, h), 
                 config=self.config)
             
-            image = raster.image.sigmoid()
+            image = raster.image
 
             depth_reg = 0.0 * gaussians.z_depth.sum()
             scale = torch.exp(gaussians.log_scaling) / min(w, h)
@@ -126,35 +178,37 @@ class Trainer:
         Returns:
             The updated MLP loss.
         """
-        for i in range(epoch_size):
-            with torch.enable_grad():
-                model_step = params_before - self.params.tensors
-                self.mlp_opt.zero_grad()
+        model_step = params_before - self.params.tensors
+        self.mlp_opt.zero_grad()
 
-                gaussians = Gaussians2D.from_tensordict(params_before)
-                gaussians.requires_grad_(True)
-                gaussians.z_depth.requires_grad_(True) 
-                self.render_step(gaussians,epoch_size,opacity_reg,scale_reg)
-                # Flatten the gradients and parameters for MLP input
-                grad_flat = flatten_tensorclass(gaussians.grad)
+        gaussians = Gaussians2D.from_tensordict(params_before)
+        gaussians.requires_grad_(True)
+        gaussians.z_depth.requires_grad_(True) 
+        with torch.enable_grad():
+            
+            self.render_step(gaussians,epoch_size,opacity_reg,scale_reg)
+            # Flatten the gradients and parameters for MLP input
+            grad_flat = flatten_tensorclass(gaussians.grad)
 
-                predicted_step = self.mlp(grad_flat, gaussians,
-                                                    self.ref_image.shape[:2],
-                                                    self.config,
-                                                    self.ref_image)
-                predicted_step = split_tensorclass(gaussians, predicted_step)
-                
-                # Compute supervised loss for MLP
-                mlp_loss = torch.nn.functional.l1_loss(flatten_tensorclass(model_step), flatten_tensorclass(predicted_step))
-                mlp_loss.backward()
+            predicted_step = self.mlp(grad_flat, gaussians,
+                                                self.ref_image.shape[:2],
+                                                self.config,
+                                                self.ref_image)
+            predicted_step = split_tensorclass(gaussians, predicted_step)
+            
+            # Compute supervised loss for MLP
+            mlp_loss = torch.nn.functional.l1_loss(flatten_tensorclass(model_step), flatten_tensorclass(predicted_step))
+            mlp_loss.backward()
 
         # Update the MLP parameters
         self.mlp_opt.step()
+        self.params.tensors.replace(params_before - predicted_step)
         
 
-        return mlp_loss.item(),params_before + predicted_step
-
-def main():
+        return mlp_loss.item(),self.params.tensors
+        
+def main_mlp():
+    
     torch.set_printoptions(precision=4, sci_mode=False)
 
     cmd_args = parse_args()
@@ -196,16 +250,18 @@ def main():
 
     n_inputs = sum([np.prod(v.shape[1:], dtype=int) for k, v in gaussians.items()])
     
-    mlp = GaussianMixer(inputs=n_inputs,
+    mlp = MLP_Model(inputs=n_inputs,
                               outputs=n_inputs,
                               n_render=16,
                               n_base=128,
-                              method = "mlp").to(device)
+                            ).to(device)
     mlp.to(device=device)
 
 
     mlp = torch.compile(mlp)
     mlp_opt = torch.optim.Adam(mlp.parameters(), lr=0.001)
+
+    
 
     params = ParameterClass(gaussians.to_tensordict(),
                             parameter_groups,
@@ -214,6 +270,7 @@ def main():
                             betas=(0.9, 0.9),
                             eps=1e-16,
                             bias_correction=False)
+
 
     keys = set(params.keys())
     trainable = set(params.optimized_keys())
@@ -238,13 +295,14 @@ def main():
     epochs = make_epochs(cmd_args.iters, cmd_args.epoch, cmd_args.max_epoch)
 
     pbar = tqdm(total=cmd_args.iters)
+    
     iteration = 0
     for epoch_size in epochs:
 
         t = (iteration + epoch_size * 0.5) / cmd_args.iters
         trainer.params.set_learning_rate(position=log_lerp(t, *lr_range))
         metrics = {}
-        image, point_heuristics = trainer.train(
+        image, point_heuristics,mlp_image = trainer.train(
             epoch_size=epoch_size,
             opacity_reg=cmd_args.opacity_reg,
             scale_reg=cmd_args.scale_reg,
@@ -252,6 +310,7 @@ def main():
 
         if cmd_args.show:
             display_image('rendered', image)
+            display_image('mlp', mlp_image)
 
         if cmd_args.write_frames:
             filename = cmd_args.write_frames / f'{iteration:04d}.png'
@@ -261,6 +320,7 @@ def main():
                         (image.detach().clamp(0, 1) * 255).cpu().numpy())
 
         metrics['CPSNR'] = psnr(ref_image, image).item()
+        metrics['MLP_CPSNR'] = psnr(ref_image, mlp_image).item()
         metrics['n'] = trainer.params.batch_size[0]
 
         if cmd_args.prune and cmd_args.target is None:
@@ -287,4 +347,5 @@ def main():
         pbar.update(epoch_size)
 
 
-main()
+if __name__ == "__main__":
+    main_mlp()

@@ -40,3 +40,14 @@ def log_adam_behavior_to_wandb(image_id, gaussians, adam_optimizer, iter, render
 
     # Log to wandb
     wandb.log(log_data)
+
+
+
+def initializeWandb() :
+    wandb.init(project="gaussian2d-adam-behavior",
+                   config={
+                       "learning_rate": 0.001,
+                       "architecture": "Gaussian2D",
+                       "optimizer": "Adam",
+                       "ref_image": cmd_args.image_file
+                   })
