@@ -24,16 +24,7 @@ from taichi_splatting.tests.random_data import random_2d_gaussians
 from taichi_splatting.torch_lib.util import check_finite
 import os
 import matplotlib.pyplot as plt
-def save_checkpoint(optimizer,optimizer_opt, metrics_history,epoch_size, filename="checkpoint.pth"):
-    checkpoint = {
-        'epoch_size': epoch_size,
-        'optimizer_state_dict': optimizer.state_dict(),
-        'optimizer_opt_state_dict': optimizer_opt.state_dict(),
-        'metrics': metrics_history,
-        
-    }
-    torch.save(checkpoint, filename)
-    print(f"Checkpoint saved to {filename}")
+
 def main():
     torch.set_printoptions(precision=4, sci_mode=True)
 
