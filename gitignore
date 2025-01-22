@@ -1,6 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-learned_optimizer/wandb/*
+learned_optimizer/wandb
 *.py[cod]
 *$py.class
 
@@ -15,7 +15,7 @@ learned_optimizer/wandb/*
 .Python
 *.nfs*
 
-learned_optimizer/wandb/
+
 build/
 develop-eggs/
 dist/
