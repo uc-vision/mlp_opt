@@ -12,7 +12,7 @@ import taichi as ti
 import torch
 from tqdm import tqdm
 from taichi_splatting.data_types import Gaussians2D, RasterConfig
-from taichi_splatting.examples.mlp import mlp,TransformerMLP,UNet4
+from mlp import mlp
 from taichi_splatting.misc.renderer2d import project_gaussians2d
 
 from taichi_splatting.rasterizer.function import rasterize
@@ -28,31 +28,31 @@ import torch.nn.utils as nn_utils
 
 
 
+def element_sizes_batch(t):
+    """ Get non batch sizes from a tensorclass"""
 
-def element_sizes(t):
-  """ Get non batch sizes from a tensorclass"""
- 
-  return {k:v.shape[2:] for k, v in t.items()}
+    return {k: v.shape[1:] for k, v in t.items()}
 
-def split_tensorclass(t, flat_tensor:torch.Tensor):
-  
-    step =[]
-    
-    # print(f"flat tensors: {flat_tensor.shape}")
-    sizes = element_sizes(t)
-    # print(f"element size :{element_sizes}")
-
-    splits = [np.prod(s) for s in sizes.values()]
-    # print(f"split : {splits}")
-    tensors = torch.split(flat_tensor, splits, dim=2)
-    # print(f"tensor {tensors[0].shape}")
+def split_tensorclass(t, flat_tensor: torch.Tensor):
+    sizes = element_sizes_batch(t)
+    # print(f"size{sizes.keys()}")
+    # print(f"size{sizes.values()}")
     # print(t.batch_size)
+
+    splits = [int(np.prod(s)) for s in sizes.values()]
+    # print(f"split{splits}")
+    # print(f"flat_tensor{flat_tensor.squeeze(1).shape}")
+
+    tensors = torch.split(flat_tensor.squeeze(1), splits, dim=3)
+    # print(f"tensors {tensors[0].shape}")
+
     return t.__class__.from_dict(
-    {
-        k: v.view(t.batch_size + s)  # Reshape tensor `v`
-        for k, v, s in zip(sizes.keys(), tensors, sizes.values())  # Iterate over field names, tensors, and their sizes
-    },
-    batch_size=t.batch_size)  # Set batch size for the new tensorclass)
+        {
+            k: v.view(torch.Size([10, 5000])+s )  # Reshape tensor `v`
+            for k, v, s in zip(sizes.keys(), tensors, sizes.values(
+            ))  # Iterate over field names, tensors, and their sizes
+        },
+        batch_size=torch.Size([10, 5000]))# Set batch size for the new tensorclass)
 
 
     
@@ -74,7 +74,8 @@ def load_batch_images(image_batch, device):
         images.append(img)
     
     # Stack images into a single tensor (batch_size, H, W, C)
-    return torch.stack(images,dim=0)
+    # return torch.stack(images,dim=0)
+    return images
 
 def psnr_batch_efficient(batch_a, batch_b):
     """
@@ -116,6 +117,6 @@ def initialize_gaussians(batch_size, image_size, n_gaussians, device):
 
 
 def flatten_tensorclass(t):
-#   print(f"flatten Tensor : {t}")
-  flat_tensor = torch.cat([v.view(v.shape[0],v.shape[1], -1) for v in t.values()], dim=2)
-  return flat_tensor
+    flat_tensor = torch.cat(
+        [v.view(v.shape[0], v.shape[1], -1) for v in t.values()], dim=2)
+    return flat_tensor

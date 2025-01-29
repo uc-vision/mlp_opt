@@ -90,7 +90,7 @@ class MLP_Model(nn.Module):
 
 
 
-    def forward(self, x: torch.Tensor, gaussians: Gaussians2D,
+    def forward(self, x: torch.Tensor,
                 image_size: Tuple[int, int], raster_config: RasterConfig,
                 ref_image: torch.Tensor) -> torch.Tensor:
         

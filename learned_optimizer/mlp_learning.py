@@ -190,11 +190,14 @@ class Trainer:
             # Flatten the gradients and parameters for MLP input
             grad_flat = flatten_tensorclass(gaussians.grad)
 
-            predicted_step = self.mlp(grad_flat, gaussians,
+            predicted_step = self.mlp(grad_flat, 
                                                 self.ref_image.shape[:2],
                                                 self.config,
                                                 self.ref_image)
+            print(predicted_step.shape)
             predicted_step = split_tensorclass(gaussians, predicted_step)
+            print(predicted_step.shape)
+
             
             # Compute supervised loss for MLP
             mlp_loss = torch.nn.functional.l1_loss(flatten_tensorclass(model_step), flatten_tensorclass(predicted_step))
