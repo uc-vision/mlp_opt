@@ -41,18 +41,18 @@ def split_tensorclass(t, flat_tensor: torch.Tensor):
 
     splits = [int(np.prod(s)) for s in sizes.values()]
     print(f"split{splits}")
-    print(f"flat_tensor{flat_tensor.squeeze(1).shape}")
+    print(f"flat_tensor{flat_tensor.squeeze(0).shape}")
 
-    tensors = torch.split(flat_tensor.squeeze(1), splits, dim=2)
+    tensors = torch.split(flat_tensor.squeeze(0), splits, dim=2)
     print(f"tensors {tensors[0].shape}")
 
     return t.__class__.from_dict(
         {
-            k: v.view(torch.Size([1, 5000])+s )  # Reshape tensor `v`
+            k: v.view(torch.Size([2, 5000])+s )  # Reshape tensor `v`
             for k, v, s in zip(sizes.keys(), tensors, sizes.values(
             ))  # Iterate over field names, tensors, and their sizes
         },
-        batch_size=torch.Size([1, 5000]))# Set batch size for the new tensorclass)
+        batch_size=torch.Size([2, 5000]))# Set batch size for the new tensorclass)
 
 
     

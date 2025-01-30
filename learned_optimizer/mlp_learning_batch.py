@@ -231,8 +231,9 @@ class Trainer:
             # print(f"grad shape {grad.shape}")
 
             grad_flat = flatten_tensorclass(grad)
-            # print(f"grad_flat shape {grad_flat.shape}")
+            print(f"grad_flat shape {grad_flat.shape}")
             grad_flat = grad_flat.unsqueeze(0)
+            print(f"grad_flat unsqueeze {grad_flat.shape}")
             
 
             predicted_step = self.mlp(grad_flat,
@@ -315,7 +316,7 @@ def main_mlp():
     mlp = torch.compile(mlp)
     mlp_opt = torch.optim.Adam(mlp.parameters(), lr=0.001)
 
-    batch_size = 1
+    batch_size = 2
 
     params = ParameterClass(gaussians.to_tensordict(),
                             parameter_groups,
