@@ -230,9 +230,6 @@ class Trainer:
             # Flatten the gradients and parameters for MLP input
             # print(f"grad shape {grad.shape}")
 
-
-
-
             grad_flat = flatten_tensorclass(grad)
             # print(f"grad_flat shape {grad_flat.shape}")
             grad_flat = grad_flat.unsqueeze(0)
@@ -242,11 +239,11 @@ class Trainer:
                                                 self.params_list[0].ref_image.shape[:2],
                                                 self.config,
                                                 self.ref_image)
-            # print(f"predict_shape{predicted_step.shape}")
-            # print(self.params_list[0].gaussian)
+            print(f"predict_shape{predicted_step.shape}")
+            print(self.params_list[0].gaussian)
             predicted_step = split_tensorclass(self.params_list[0].gaussian, predicted_step)
-            # print(f"predict_shape{predicted_step.shape}")
-            # print(f"flattern_model_step{flatten_tensorclass(model_step).shape}")
+            print(f"predict_shape{predicted_step.shape}")
+            print(f"flattern_model_step{flatten_tensorclass(model_step).shape}")
             # Compute supervised loss for MLP
             mlp_loss = torch.nn.functional.l1_loss(flatten_tensorclass(model_step), flatten_tensorclass(predicted_step))
             mlp_loss.backward()
@@ -318,7 +315,7 @@ def main_mlp():
     mlp = torch.compile(mlp)
     mlp_opt = torch.optim.Adam(mlp.parameters(), lr=0.001)
 
-    batch_size = 10
+    batch_size = 1
 
     params = ParameterClass(gaussians.to_tensordict(),
                             parameter_groups,
@@ -329,7 +326,6 @@ def main_mlp():
                             bias_correction=False)
     
 
-    batch_size = 10
 
 
     keys = set(params.keys())
