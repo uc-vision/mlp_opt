@@ -27,7 +27,6 @@ import torch.nn.utils as nn_utils
 
 
 
-
 def element_sizes_batch(t):
     """ Get non batch sizes from a tensorclass"""
 
@@ -35,34 +34,23 @@ def element_sizes_batch(t):
 
 def split_tensorclass(t, flat_tensor: torch.Tensor):
     sizes = element_sizes_batch(t)
-    print(f"size{sizes.keys()}")
-    print(f"size{sizes.values()}")
-    print(t.batch_size)
-
     splits = [int(np.prod(s)) for s in sizes.values()]
-    print(f"split{splits}")
-    print(f"flat_tensor{flat_tensor.squeeze(0).shape}")
-
-    tensors = torch.split(flat_tensor.squeeze(0), splits, dim=2)
-    print(f"tensors {tensors[0].shape}")
-
-    return t.__class__.from_dict(
+ 
+    tensors = torch.split(flat_tensor, splits, dim=2)
+  
+    k =  t.__class__.from_dict(
         {
             k: v.view(torch.Size([2, 5000])+s )  # Reshape tensor `v`
             for k, v, s in zip(sizes.keys(), tensors, sizes.values(
-            ))  # Iterate over field names, tensors, and their sizes
+            ))  
         },
         batch_size=torch.Size([2, 5000]))# Set batch size for the new tensorclass)
-
-
-    
-
+    return k
 
 
 def batch_images(image_files, batch_size):
     """Split image file paths into batches."""
     for i in range(0, len(image_files), batch_size):
-        # print(i)
         yield image_files[i:i + batch_size]
 def load_batch_images(image_batch, device):
     """Load and preprocess a batch of images."""
@@ -73,8 +61,7 @@ def load_batch_images(image_batch, device):
         img = torch.from_numpy(img).to(dtype=torch.float32, device=device) / 255
         images.append(img)
     
-    # Stack images into a single tensor (batch_size, H, W, C)
-    # return torch.stack(images,dim=0)
+
     return images
 
 def psnr_batch_efficient(batch_a, batch_b):
@@ -118,5 +105,7 @@ def initialize_gaussians(batch_size, image_size, n_gaussians, device):
 
 def flatten_tensorclass(t):
     flat_tensor = torch.cat(
+        
         [v.view(v.shape[0], v.shape[1], -1) for v in t.values()], dim=2)
+    
     return flat_tensor

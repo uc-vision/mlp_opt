@@ -63,7 +63,7 @@ class Trainer:
 
         point_heuristic = torch.zeros((params.batch_size[0], 2), device=params.position.device)
         visibility = torch.zeros((params.batch_size[0]), device=params.position.device)
-
+   
         for i in range(epoch_size):
             params.optimizer.zero_grad()
 
@@ -113,32 +113,26 @@ class Trainer:
 
         return image, (point_heuristic[:, 0], point_heuristic[:, 1]),params
 
-    def train(self, epoch_size=100, grad_alpha=0.9, opacity_reg=0.0, scale_reg=0.0):
-    
-        
+    def train_orignal_model(self,epoch_size,grad_alpha,opacity_reg,scale_reg):
         for paramPair in self.params_list:
 
-            with torch.enable_grad():
+            paramPair.param_before = paramPair.params.tensors.clone().detach()
 
-                paramPair.param_before = paramPair.params.tensors.clone().detach()
+            paramPair.gaussian_image, metrics, paramPair.params = self.train_epoch(
+                paramPair.params,
+                paramPair.ref_image,
+                epoch_size=epoch_size,
+                grad_alpha=grad_alpha,
+                opacity_reg=opacity_reg,
+                scale_reg=scale_reg
+            )
 
-                image, metrics,params = self.train_epoch(
-                    paramPair.params,
-                    paramPair.ref_image,
-                    epoch_size=epoch_size,
-                    grad_alpha=grad_alpha,
-                    opacity_reg=opacity_reg,
-                    scale_reg=scale_reg
-                )
-            paramPair.params = params
 
-            paramPair.gaussian_image = image
-            
-           
-        
-        mlp_loss = self.train_mlp(epoch_size,opacity_reg,scale_reg)
-        
-            
+    def train(self, epoch_size=100, grad_alpha=0.9, opacity_reg=0.0, scale_reg=0.0):
+    
+        self.train_orignal_model(epoch_size,grad_alpha, opacity_reg,scale_reg)
+        self.train_mlp(epoch_size,opacity_reg,scale_reg)
+    
         return 0
 
 
@@ -170,13 +164,13 @@ class Trainer:
                         + scale_reg * scale.pow(2).mean() + depth_reg)
                 batch_loss += loss
             paramPair.gaussian = gaussians
-            # print(gaussians.grad)
+
 
         with torch.enable_grad():
             batch_loss.backward()
 
         for paramPair in self.params_list:
-            gradients.append(paramPair.gaussian.grad.clone())
+            gradients.append(paramPair.gaussian.grad.clone().detach())
         return torch.stack(gradients)
        
 
@@ -221,46 +215,29 @@ class Trainer:
         
         self.mlp_opt.zero_grad()
         model_step = self.get_model_step()
-        # print(f"model-step{model_step.shape}")
-
 
         with torch.enable_grad():
-            
             grad = self.render_step(epoch_size,opacity_reg,scale_reg)
-            # Flatten the gradients and parameters for MLP input
-            # print(f"grad shape {grad.shape}")
-
             grad_flat = flatten_tensorclass(grad)
-            print(f"grad_flat shape {grad_flat.shape}")
-            grad_flat = grad_flat.unsqueeze(0)
-            print(f"grad_flat unsqueeze {grad_flat.shape}")
-            
-
+ 
             predicted_step = self.mlp(grad_flat,
                                                 self.params_list[0].ref_image.shape[:2],
                                                 self.config,
                                                 self.ref_image)
-            print(f"predict_shape{predicted_step.shape}")
-            print(self.params_list[0].gaussian)
+           
             predicted_step = split_tensorclass(self.params_list[0].gaussian, predicted_step)
-            print(f"predict_shape{predicted_step.shape}")
-            print(f"flattern_model_step{flatten_tensorclass(model_step).shape}")
+           
             # Compute supervised loss for MLP
             mlp_loss = torch.nn.functional.l1_loss(flatten_tensorclass(model_step), flatten_tensorclass(predicted_step))
             mlp_loss.backward()
 
-        # Update the MLP parameters
+    
         self.mlp_opt.step()
         for i, paramPair in enumerate(self.params_list):
-            # Extract the corresponding slice [5000] for this paramPair
-            param_step = predicted_step[i]  # Extracts [5000] for each iteration
-            
-            # Perform the replacement operation
+            param_step = predicted_step[i] 
             paramPair.params.tensors.replace(paramPair.param_before - param_step)
             paramPair.mlp_image = self.render_gaussians(paramPair.params.tensors).image.sigmoid()
         
-
-        return mlp_loss.item()
         
 def main_mlp():
     
@@ -332,10 +309,6 @@ def main_mlp():
     keys = set(params.keys())
     trainable = set(params.optimized_keys())
 
-    # print(f'attributes - trainable: {trainable} other: {keys - trainable}')
-
-    
-
     ref_image = torch.from_numpy(ref_image).to(dtype=torch.float32,
                                                device=device) / 255
 
@@ -383,12 +356,13 @@ def main_mlp():
 
             if cmd_args.show:
                 display_image('rendered', trainer.params_list[0].gaussian_image)
+                display_image('original', trainer.params_list[0].ref_image)
                 display_image('mlp', trainer.params_list[0].mlp_image)
 
             if cmd_args.write_frames:
                 filename = cmd_args.write_frames / f'{iteration:04d}.png'
                 filename.parent.mkdir(exist_ok=True, parents=True)
-                # print(f'Writing {filename}')
+            
                 cv2.imwrite(str(filename),
                             (image.detach().clamp(0, 1) * 255).cpu().numpy())
 
